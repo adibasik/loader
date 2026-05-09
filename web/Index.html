@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Fabric Launcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080810;--surface:#0e0e1a;--surface2:#13131f;
+  --border:rgba(120,100,255,0.12);--border2:rgba(255,255,255,0.06);
+  --accent:#7c6fff;--accent2:#a78bfa;--accent3:#c4b5fd;
+  --green:#4ade80;--red:#f87171;--yellow:#fbbf24;
+  --text:#f0eeff;--muted:rgba(200,190,255,0.4);--subtle:rgba(200,190,255,0.15);
+  --font:'Syne',sans-serif;--mono:'JetBrains Mono',monospace;
+  --radius:16px;--radius-sm:10px;--radius-lg:24px;
+}
+
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden;height:100vh;display:flex;flex-direction:column;user-select:none}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--accent);opacity:.3;border-radius:99px}
+
+/* Background */
+.bg-grid{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(124,111,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(124,111,255,.03) 1px,transparent 1px);
+  background-size:48px 48px}
+.bg-glow{position:fixed;top:-200px;left:-200px;width:600px;height:600px;
+  background:radial-gradient(circle,rgba(124,111,255,.07) 0%,transparent 65%);
+  pointer-events:none;z-index:0}
+.bg-glow2{position:fixed;bottom:-150px;right:-100px;width:500px;height:500px;
+  background:radial-gradient(circle,rgba(167,139,250,.05) 0%,transparent 65%);
+  pointer-events:none;z-index:0}
+
+/* Layout */
+.app{display:flex;height:100vh;position:relative;z-index:1}
+
+/* Sidebar */
+.sidebar{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:20px 12px;gap:4px}
+.logo{display:flex;align-items:center;gap:10px;padding:8px 12px;margin-bottom:16px}
+.logo-icon{width:36px;height:36px;border-radius:12px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  box-shadow:0 0 20px rgba(124,111,255,.3)}
+.logo-text{font-size:16px;font-weight:800;letter-spacing:-.02em}
+.logo-ver{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:1px}
+
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);
+  cursor:pointer;border:none;background:none;color:var(--muted);font-family:var(--font);
+  font-size:14px;font-weight:600;width:100%;text-align:left;
+  transition:all .2s ease;position:relative}
+.nav-item:hover{color:var(--text);background:var(--surface2)}
+.nav-item.active{color:var(--accent);background:rgba(124,111,255,.1)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:3px;height:20px;background:var(--accent);border-radius:99px}
+.nav-item svg{flex-shrink:0;opacity:.7}
+.nav-item.active svg{opacity:1}
+.nav-badge{margin-left:auto;font-size:10px;font-family:var(--mono);
+  background:var(--accent);color:#fff;padding:2px 6px;border-radius:99px;font-weight:700}
+
+.sidebar-bottom{margin-top:auto;display:flex;flex-direction:column;gap:4px}
+.lang-toggle{display:flex;padding:4px;background:var(--surface2);border-radius:var(--radius-sm);
+  border:1px solid var(--border2);gap:2px}
+.lang-btn{flex:1;padding:6px;border-radius:7px;border:none;background:none;
+  color:var(--muted);font-family:var(--mono);font-size:12px;font-weight:700;
+  cursor:pointer;transition:all .2s}
+.lang-btn.active{background:var(--accent);color:#fff}
+.status-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:var(--radius-sm);
+  background:var(--surface2)}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;
+  animation:pulse 2s ease infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,.4)}70%{box-shadow:0 0 0 6px rgba(74,222,128,0)}}
+.status-text{font-size:11px;color:var(--muted);font-family:var(--mono)}
+
+/* Main content */
+.main{flex:1;overflow-y:auto;overflow-x:hidden}
+.page{display:none;padding:28px;min-height:100%;animation:fadeIn .3s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Page header */
+.page-header{margin-bottom:24px}
+.page-title{font-size:24px;font-weight:800;letter-spacing:-.03em}
+.page-sub{font-size:13px;color:var(--muted);margin-top:4px}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:20px}
+.card-sm{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:14px}
+
+/* Sections */
+.section-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.2em;
+  font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border2)}
+
+/* ── HOME PAGE ─────────────────────────────────────── */
+.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.welcome-card{grid-column:1/-1;background:linear-gradient(135deg,rgba(124,111,255,.12),rgba(167,139,250,.06));
+  border:1px solid rgba(124,111,255,.2);border-radius:var(--radius-lg);padding:24px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px}
+.welcome-left{}
+.welcome-title{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px}
+.welcome-sub{font-size:13px;color:var(--muted);line-height:1.5}
+.welcome-tags{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.tag{font-size:10px;font-family:var(--mono);padding:4px 10px;border-radius:99px;font-weight:700}
+.tag-green{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.25);color:var(--green)}
+.tag-accent{background:rgba(124,111,255,.12);border:1px solid rgba(124,111,255,.25);color:var(--accent)}
+.tag-yellow{background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.25);color:var(--yellow)}
+
+.launch-btn{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px}
+.btn-launch{display:flex;align-items:center;gap:10px;padding:14px 28px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border:none;border-radius:var(--radius);color:#fff;font-family:var(--font);
+  font-size:15px;font-weight:800;cursor:pointer;letter-spacing:-.01em;
+  box-shadow:0 0 30px rgba(124,111,255,.3);
+  transition:all .2s cubic-bezier(.22,1,.36,1)}
+.btn-launch:hover{transform:translateY(-2px);box-shadow:0 0 50px rgba(124,111,255,.45)}
+.btn-launch:active{transform:scale(.97)}
+.launch-hint{font-size:10px;color:var(--muted);font-family:var(--mono)}
+
+.quick-stat{display:flex;flex-direction:column;gap:6px}
+.stat-num{font-size:28px;font-weight:800;color:var(--accent);font-family:var(--mono)}
+.stat-label{font-size:11px;color:var(--muted)}
+
+.news-list{display:flex;flex-direction:column;gap:10px}
+.news-item{padding:14px 16px;border-radius:var(--radius-sm);
+  background:var(--surface2);border:1px solid var(--border2);
+  transition:border-color .2s}
+.news-item:hover{border-color:rgba(124,111,255,.25)}
+.news-meta{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.news-tag{font-size:9px;font-family:var(--mono);font-weight:700;padding:2px 8px;border-radius:99px}
+.news-tag.update{background:rgba(124,111,255,.15);color:var(--accent)}
+.news-tag.feature{background:rgba(74,222,128,.12);color:var(--green)}
+.news-tag.release{background:rgba(251,191,36,.12);color:var(--yellow)}
+.news-date{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.news-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.news-body{font-size:12px;color:var(--muted);line-height:1.5}
+
+/* ── MODS PAGE ─────────────────────────────────────── */
+.mods-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.mod-card{padding:16px;border-radius:var(--radius);border:1px solid var(--border2);
+  background:var(--surface);transition:all .25s;display:flex;flex-direction:column;gap:12px}
+.mod-card:hover{border-color:rgba(124,111,255,.3);transform:translateY(-2px)}
+.mod-header{display:flex;align-items:center;gap:12px}
+.mod-icon{width:40px;height:40px;border-radius:12px;background:rgba(124,111,255,.1);
+  border:1px solid rgba(124,111,255,.2);display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0}
+.mod-name{font-weight:700;font-size:14px}
+.mod-cat{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.mod-desc{font-size:12px;color:var(--muted);line-height:1.5;flex:1}
+.mod-footer{display:flex;align-items:center;justify-content:space-between}
+.mod-required{font-size:10px;font-family:var(--mono);padding:3px 8px;border-radius:99px;
+  background:rgba(124,111,255,.12);color:var(--accent);border:1px solid rgba(124,111,255,.2);font-weight:700}
+.mod-btn{padding:7px 14px;border-radius:var(--radius-sm);border:1px solid var(--border2);
+  background:none;color:var(--muted);font-family:var(--font);font-size:12px;font-weight:600;
+  cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+.mod-btn:hover{color:var(--text);border-color:rgba(124,111,255,.3);background:rgba(124,111,255,.08)}
+.mod-btn.installed{color:var(--green);border-color:rgba(74,222,128,.2);background:rgba(74,222,128,.06)}
+.mod-filter{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.filter-btn{padding:6px 14px;border-radius:99px;border:1px solid var(--border2);
+  background:none;color:var(--muted);font-family:var(--mono);font-size:11px;font-weight:600;
+  cursor:pointer;transition:all .2s}
+.filter-btn:hover{color:var(--text);border-color:rgba(124,111,255,.3)}
+.filter-btn.active{background:rgba(124,111,255,.15);color:var(--accent);border-color:rgba(124,111,255,.3)}
+
+/* ── SETTINGS PAGE ─────────────────────────────────── */
+.settings-grid{display:flex;flex-direction:column;gap:16px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 0;border-bottom:1px solid var(--border2)}
+.setting-row:last-child{border-bottom:none}
+.setting-label{font-size:13px;font-weight:600}
+.setting-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.setting-control{}
+
+/* Inputs */
+.inp{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);
+  color:var(--text);font-family:var(--mono);font-size:13px;padding:8px 12px;outline:none;
+  transition:border-color .2s;width:220px}
+.inp:focus{border-color:rgba(124,111,255,.4);box-shadow:0 0 0 3px rgba(124,111,255,.08)}
+.inp::placeholder{color:var(--muted)}
+
+.inp-wide{width:100%;margin-top:8px}
+
+.path-row{display:flex;gap:8px;align-items:center}
+.path-inp{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);
+  color:var(--text);font-family:var(--mono);font-size:12px;padding:8px 12px;outline:none;
+  transition:border-color .2s}
+.path-inp:focus{border-color:rgba(124,111,255,.4)}
+.btn-pick{padding:8px 14px;border-radius:var(--radius-sm);border:1px solid rgba(124,111,255,.3);
+  background:rgba(124,111,255,.1);color:var(--accent);font-family:var(--font);font-size:12px;
+  font-weight:700;cursor:pointer;transition:all .2s;flex-shrink:0}
+.btn-pick:hover{background:rgba(124,111,255,.2)}
+
+/* Range slider */
+.ram-row{display:flex;align-items:center;gap:12px}
+.ram-slider{-webkit-appearance:none;appearance:none;width:160px;height:4px;
+  background:var(--surface2);border-radius:99px;outline:none;cursor:pointer}
+.ram-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;
+  border-radius:50%;background:var(--accent);cursor:pointer;
+  box-shadow:0 0 8px rgba(124,111,255,.4)}
+.ram-val{font-family:var(--mono);font-size:13px;color:var(--accent);min-width:60px}
+
+/* Toggle */
+.toggle{width:40px;height:22px;background:var(--surface2);border-radius:99px;
+  cursor:pointer;position:relative;border:1px solid var(--border2);transition:background .2s}
+.toggle.on{background:var(--accent);border-color:var(--accent)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;
+  border-radius:50%;background:#fff;transition:transform .2s;
+  box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.toggle.on::after{transform:translateX(18px)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:10px 20px;border-radius:var(--radius-sm);border:none;font-family:var(--font);
+  font-size:13px;font-weight:700;cursor:pointer;transition:all .2s}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;
+  box-shadow:0 0 20px rgba(124,111,255,.2)}
+.btn-primary:hover{box-shadow:0 0 30px rgba(124,111,255,.35);transform:translateY(-1px)}
+.btn-ghost{background:none;color:var(--muted);border:1px solid var(--border2)}
+.btn-ghost:hover{color:var(--text);border-color:rgba(124,111,255,.3);background:rgba(124,111,255,.06)}
+.btn-danger{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.2)}
+.btn-danger:hover{background:rgba(248,113,113,.15)}
+
+/* Select */
+.select{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);
+  color:var(--text);font-family:var(--mono);font-size:13px;padding:8px 12px;outline:none;
+  cursor:pointer;width:160px}
+.select:focus{border-color:rgba(124,111,255,.4)}
+
+/* Info boxes */
+.info-box{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:var(--radius-sm)}
+.info-box.warn{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);color:var(--yellow)}
+.info-box.ok{background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);color:var(--green)}
+.info-box.err{background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);color:var(--red)}
+.info-box.info{background:rgba(124,111,255,.07);border:1px solid rgba(124,111,255,.2);color:var(--accent)}
+.info-box-text{font-size:12px;line-height:1.5}
+
+/* Progress */
+.progress-wrap{background:var(--surface2);border-radius:99px;height:6px;overflow:hidden;margin-top:8px}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));
+  border-radius:99px;transition:width .4s ease;width:0%}
+
+/* Fabric status card */
+.fabric-card{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center}
+.fabric-info{display:flex;flex-direction:column;gap:4px}
+.fabric-name{font-size:15px;font-weight:700}
+.fabric-ver{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.fabric-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:99px;
+  font-size:11px;font-weight:700;font-family:var(--mono)}
+.fabric-badge.installed{background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);color:var(--green)}
+.fabric-badge.missing{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);color:var(--red)}
+
+/* Toast */
+#toast{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast-item{padding:12px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;
+  display:flex;align-items:center;gap:10px;animation:toastIn .3s ease;max-width:320px;
+  backdrop-filter:blur(20px)}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+.toast-item.success{background:rgba(14,14,26,.95);border:1px solid rgba(74,222,128,.3);color:var(--green)}
+.toast-item.error{background:rgba(14,14,26,.95);border:1px solid rgba(248,113,113,.3);color:var(--red)}
+.toast-item.info{background:rgba(14,14,26,.95);border:1px solid rgba(124,111,255,.3);color:var(--accent)}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);
+  z-index:500;display:flex;align-items:center;justify-content:center;padding:24px}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+  max-width:480px;width:100%;padding:28px;animation:modalIn .3s cubic-bezier(.22,1,.36,1)}
+@keyframes modalIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+.modal-title{font-size:18px;font-weight:800;margin-bottom:8px}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.modal-btns{display:flex;gap:10px;margin-top:24px;justify-content:flex-end}
+
+/* Spinner */
+.spinner{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.15);
+  border-top-color:#fff;animation:spin .7s linear infinite;flex-shrink:0}
+.spinner-sm{width:14px;height:14px;border-width:2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* System info grid */
+.sysinfo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sysinfo-item{padding:12px 14px;border-radius:var(--radius-sm);background:var(--surface2);border:1px solid var(--border2)}
+.sysinfo-key{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.sysinfo-val{font-size:12px;font-family:var(--mono);color:var(--text);word-break:break-all}
+
+/* About */
+.about-logo{width:64px;height:64px;border-radius:20px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;margin:0 auto 16px;
+  box-shadow:0 0 30px rgba(124,111,255,.3)}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+<div class="bg-glow2"></div>
+<div id="toast"></div>
+
+<div class="app">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    </div>
+    <div>
+      <div class="logo-text">Fabric</div>
+      <div class="logo-ver">1.21.1</div>
+    </div>
+  </div>
+
+  <button class="nav-item active" onclick="nav('home')" id="nav-home">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span data-i="nav_home">Главная</span>
+  </button>
+  <button class="nav-item" onclick="nav('mods')" id="nav-mods">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    <span data-i="nav_mods">Моды</span>
+    <span class="nav-badge">8</span>
+  </button>
+  <button class="nav-item" onclick="nav('fabric')" id="nav-fabric">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <span data-i="nav_fabric">Fabric</span>
+  </button>
+  <button class="nav-item" onclick="nav('settings')" id="nav-settings">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+    <span data-i="nav_settings">Настройки</span>
+  </button>
+  <button class="nav-item" onclick="nav('about')" id="nav-about">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span data-i="nav_about">О программе</span>
+  </button>
+
+  <div class="sidebar-bottom">
+    <div class="lang-toggle">
+      <button class="lang-btn active" id="lang-ru" onclick="setLang('ru')">RU</button>
+      <button class="lang-btn" id="lang-en" onclick="setLang('en')">EN</button>
+    </div>
+    <div class="status-bar">
+      <div class="status-dot"></div>
+      <span class="status-text" data-i="status_ok">Готов к запуску</span>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- HOME -->
+<div class="page active" id="page-home">
+  <div class="page-header">
+    <div class="page-title" data-i="home_title">Добро пожаловать</div>
+    <div class="page-sub" data-i="home_sub">Fabric лаунчер для Minecraft 1.21.1</div>
+  </div>
+
+  <div class="home-grid">
+    <div class="welcome-card">
+      <div class="welcome-left">
+        <div class="welcome-title" id="welcome-greeting">Привет, Игрок!</div>
+        <div class="welcome-sub" data-i="welcome_sub">Всё готово к игре. Нажми запустить чтобы начать.</div>
+        <div class="welcome-tags">
+          <span class="tag tag-green" data-i="tag_fabric">Fabric 0.16.5</span>
+          <span class="tag tag-accent">MC 1.21.1</span>
+          <span class="tag tag-yellow" data-i="tag_java">Java 21</span>
+        </div>
+      </div>
+      <div class="launch-btn">
+        <button class="btn-launch" id="main-launch-btn" onclick="launchGame()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span data-i="btn_launch">ЗАПУСТИТЬ</span>
+        </button>
+        <div class="launch-hint" data-i="launch_hint">Minecraft 1.21.1 + Fabric</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label" data-i="section_stats">Статистика</div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="quick-stat"><div class="stat-num" id="stat-mods">—</div><div class="stat-label" data-i="stat_mods">Рекомендуемых модов</div></div>
+        <div class="quick-stat"><div class="stat-num" style="color:var(--green)">1.21.1</div><div class="stat-label" data-i="stat_ver">Версия игры</div></div>
+        <div class="quick-stat"><div class="stat-num" style="color:var(--accent2)" id="stat-ram">—</div><div class="stat-label" data-i="stat_ram">RAM для игры</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label" data-i="section_news">Новости</div>
+      <div class="news-list" id="news-list">
+        <div style="color:var(--muted);font-size:12px" data-i="loading">Загрузка...</div>
+      </div>
+    </div>
+
+    <div class="card" id="launch-status-card" style="display:none;grid-column:1/-1">
+      <div class="section-label" data-i="section_launch">Запуск</div>
+      <div id="launch-status-text" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
+      <div class="progress-wrap"><div class="progress-bar" id="launch-prog"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODS -->
+<div class="page" id="page-mods">
+  <div class="page-header">
+    <div class="page-title" data-i="mods_title">Рекомендуемые моды</div>
+    <div class="page-sub" data-i="mods_sub">Полезные моды для Fabric 1.21.1 — оптимизация и удобство</div>
+  </div>
+  <div class="mod-filter">
+    <button class="filter-btn active" onclick="filterMods('all')" data-i="filter_all">Все</button>
+    <button class="filter-btn" onclick="filterMods('performance')" data-i="filter_perf">Производительность</button>
+    <button class="filter-btn" onclick="filterMods('visual')" data-i="filter_visual">Визуал</button>
+    <button class="filter-btn" onclick="filterMods('utility')" data-i="filter_util">Утилиты</button>
+  </div>
+  <div class="mods-grid" id="mods-grid">
+    <div style="color:var(--muted);font-size:12px" data-i="loading">Загрузка...</div>
+  </div>
+</div>
+
+<!-- FABRIC -->
+<div class="page" id="page-fabric">
+  <div class="page-header">
+    <div class="page-title" data-i="fabric_title">Установка Fabric</div>
+    <div class="page-sub" data-i="fabric_sub">Fabric — лёгкий мод-лоадер для Minecraft</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="fabric-card">
+        <div class="fabric-info">
+          <div class="fabric-name">Fabric Loader</div>
+          <div class="fabric-ver" id="fabric-ver-text">0.16.5 / MC 1.21.1</div>
+          <div id="fabric-status-badge" class="fabric-badge missing" style="margin-top:8px;width:fit-content">
+            <span data-i="fabric_checking">Проверяем...</span>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="fabric-install-btn" onclick="installFabric()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span data-i="btn_install_fabric">Установить</span>
+        </button>
+      </div>
+      <div id="fabric-progress-wrap" style="display:none;margin-top:16px">
+        <div id="fabric-progress-text" style="font-size:12px;color:var(--muted);margin-bottom:6px"></div>
+        <div class="progress-wrap"><div class="progress-bar" id="fabric-prog-bar"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label" data-i="section_howto">Как установить</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="info-box info">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div class="info-box-text" data-i="fabric_note">Убедись что указана правильная папка Minecraft в Настройках, и установлена Java 17+.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="width:24px;height:24px;border-radius:8px;background:rgba(124,111,255,.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0">1</div>
+            <div style="font-size:13px;color:var(--muted);padding-top:3px" data-i="step1">Укажи папку Minecraft в разделе Настройки</div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="width:24px;height:24px;border-radius:8px;background:rgba(124,111,255,.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0">2</div>
+            <div style="font-size:13px;color:var(--muted);padding-top:3px" data-i="step2">Нажми «Установить» — лоадер скачается и установится автоматически</div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="width:24px;height:24px;border-radius:8px;background:rgba(124,111,255,.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0">3</div>
+            <div style="font-size:13px;color:var(--muted);padding-top:3px" data-i="step3">Запускай игру через этот лаунчер — профиль Fabric будет выбран автоматически</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div class="page-header">
+    <div class="page-title" data-i="settings_title">Настройки</div>
+    <div class="page-sub" data-i="settings_sub">Конфигурация лаунчера и игры</div>
+  </div>
+  <div class="settings-grid" id="settings-grid">
+    <!-- Settings will be populated dynamically -->
+  </div>
+</div>
+
+<!-- ABOUT -->
+<div class="page" id="page-about">
+  <div class="page-header">
+    <div class="page-title" data-i="about_title">О программе</div>
+  </div>
+  <div style="max-width:480px;margin:0 auto;text-align:center">
+    <div class="about-logo">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    </div>
+    <div style="font-size:22px;font-weight:800;margin-bottom:6px">Fabric Launcher</div>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:24px">v1.0.0 — Minecraft 1.21.1</div>
+    <div class="card" style="text-align:left;margin-bottom:16px">
+      <div class="section-label" data-i="section_features">Возможности</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:center"><span style="color:var(--green)">✓</span> <span data-i="feat1">Установка и запуск Fabric автоматически</span></div>
+        <div style="font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:center"><span style="color:var(--green)">✓</span> <span data-i="feat2">Список рекомендуемых модов с ссылками</span></div>
+        <div style="font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:center"><span style="color:var(--green)">✓</span> <span data-i="feat3">Выбор папки Minecraft вручную</span></div>
+        <div style="font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:center"><span style="color:var(--green)">✓</span> <span data-i="feat4">Настройка оперативной памяти</span></div>
+        <div style="font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:center"><span style="color:var(--green)">✓</span> <span data-i="feat5">Русский и английский интерфейс</span></div>
+      </div>
+    </div>
+    <div class="info-box info" style="text-align:left">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div class="info-box-text" data-i="about_note">Требуется Java 17 или новее. Рекомендуется Java 21.</div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- MODALS -->
+<div id="launch-modal" style="display:none" class="modal-bg" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-title" data-i="launch_modal_title">Запуск игры</div>
+    <div class="modal-sub" data-i="launch_modal_sub">Открываем Minecraft с Fabric...</div>
+    <div id="launch-modal-status" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
+    <div class="progress-wrap"><div class="progress-bar" id="launch-modal-prog"></div></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="document.getElementById('launch-modal').style.display='none'" data-i="btn_close">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div id="install-modal" style="display:none" class="modal-bg" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-title">Установка Minecraft</div>
+    <div class="modal-sub" id="install-modal-desc">Подготовка...</div>
+    <div id="install-modal-message" style="font-size:12px;color:var(--muted);margin-bottom:12px"></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <div style="flex:1"><div class="progress-wrap"><div class="progress-bar" id="install-progress-bar"></div></div></div>
+      <div id="install-speed" style="font-size:11px;font-family:var(--mono);color:var(--muted)">0 KB/s</div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-danger" onclick="cancelInstall()" id="cancel-install-btn">Отменить</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('install-modal').style.display='none'">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── i18n ─────────────────────────────────────────────────────────────────────
+const T = {
+  ru: {
+    nav_home:'Главная', nav_mods:'Моды', nav_fabric:'Fabric',
+    nav_settings:'Настройки', nav_about:'О программе',
+    status_ok:'Готов к запуску',
+    home_title:'Добро пожаловать', home_sub:'Fabric лаунчер для Minecraft 1.21.1',
+    welcome_sub:'Всё готово к игре. Нажми запустить чтобы начать.',
+    tag_fabric:'Fabric 0.16.5', tag_java:'Java 21',
+    btn_launch:'ЗАПУСТИТЬ', launch_hint:'Minecraft 1.21.1 + Fabric',
+    section_stats:'Статистика', stat_mods:'Рекомендуемых модов',
+    stat_ver:'Версия игры', stat_ram:'RAM для игры',
+    section_news:'Новости', loading:'Загрузка...',
+    section_launch:'Запуск',
+    mods_title:'Рекомендуемые моды',
+    mods_sub:'Полезные моды для Fabric 1.21.1 — оптимизация и удобство',
+    filter_all:'Все', filter_perf:'Производительность',
+    filter_visual:'Визуал', filter_util:'Утилиты',
+    mod_open:'Открыть', mod_installed:'✓ Установлен',
+    mod_required:'Обязательный',
+    fabric_title:'Установка Fabric',
+    fabric_sub:'Fabric — лёгкий мод-лоадер для Minecraft',
+    fabric_checking:'Проверяем...',
+    fabric_installed:'✓ Установлен', fabric_missing:'✗ Не установлен',
+    btn_install_fabric:'Установить',
+    section_howto:'Как установить',
+    fabric_note:'Убедись что указана правильная папка Minecraft в Настройках, и установлена Java 17+.',
+    step1:'Укажи папку Minecraft в разделе Настройки',
+    step2:'Нажми «Установить» — лоадер скачается и установится автоматически',
+    step3:'Запускай игру через этот лаунчер — профиль Fabric будет выбран автоматически',
+    settings_title:'Настройки', settings_sub:'Конфигурация лаунчера и игры',
+    section_player:'Игрок', setting_username:'Никнейм',
+    setting_username_sub:'Имя в оффлайн режиме',
+    section_paths:'Пути', setting_mcdir:'Папка Minecraft',
+    setting_mcdir_sub:'Путь к .minecraft директории',
+    setting_java:'Java путь', setting_java_sub:'Оставь пустым для автоопределения',
+    section_perf:'Производительность', setting_ram:'Оперативная память',
+    setting_ram_sub:'Мегабайт выделить для игры',
+    section_system:'Система',
+    btn_reset:'Сбросить', btn_save:'Сохранить',
+    saved:'Настройки сохранены!', reset_done:'Настройки сброшены',
+    about_title:'О программе', section_features:'Возможности',
+    feat1:'Установка и запуск Fabric автоматически',
+    feat2:'Список рекомендуемых модов с ссылками',
+    feat3:'Выбор папки Minecraft вручную',
+    feat4:'Настройка оперативной памяти',
+    feat5:'Русский и английский интерфейс',
+    about_note:'Требуется Java 17 или новее. Рекомендуется Java 21.',
+    launch_modal_title:'Запуск игры',
+    launch_modal_sub:'Открываем Minecraft с Fabric...',
+    btn_close:'Закрыть',
+    err_no_dir:'Укажи папку Minecraft в настройках',
+    err_no_fabric:'Fabric не установлен. Перейди в раздел Fabric.',
+    launch_ok:'Minecraft запущен!',
+    launch_checking:'Проверяем конфигурацию...',
+    launch_launching:'Запускаем игру...',
+    launch_done:'Готово! Игра запущена.',
+    fabric_dl:'Скачиваем Fabric Installer...',
+    fabric_inst:'Устанавливаем...',
+    fabric_done:'Fabric установлен!',
+    fabric_err:'Ошибка установки',
+    syskey_os:'Операционная система', syskey_java:'Java',
+    syskey_mcdir:'Папка MC', syskey_exists:'Папка существует',
+    syskey_yes:'Да', syskey_no:'Нет',
+  },
+  en: {
+    nav_home:'Home', nav_mods:'Mods', nav_fabric:'Fabric',
+    nav_settings:'Settings', nav_about:'About',
+    status_ok:'Ready to launch',
+    home_title:'Welcome', home_sub:'Fabric launcher for Minecraft 1.21.1',
+    welcome_sub:'Everything is ready. Press launch to start playing.',
+    tag_fabric:'Fabric 0.16.5', tag_java:'Java 21',
+    btn_launch:'LAUNCH', launch_hint:'Minecraft 1.21.1 + Fabric',
+    section_stats:'Stats', stat_mods:'Recommended mods',
+    stat_ver:'Game version', stat_ram:'RAM for game',
+    section_news:'News', loading:'Loading...',
+    section_launch:'Launch',
+    mods_title:'Recommended Mods',
+    mods_sub:'Useful mods for Fabric 1.21.1 — optimization and quality of life',
+    filter_all:'All', filter_perf:'Performance',
+    filter_visual:'Visual', filter_util:'Utility',
+    mod_open:'Open', mod_installed:'✓ Installed',
+    mod_required:'Required',
+    fabric_title:'Install Fabric',
+    fabric_sub:'Fabric — a lightweight mod loader for Minecraft',
+    fabric_checking:'Checking...',
+    fabric_installed:'✓ Installed', fabric_missing:'✗ Not installed',
+    btn_install_fabric:'Install',
+    section_howto:'How to install',
+    fabric_note:'Make sure the correct Minecraft folder is set in Settings, and Java 17+ is installed.',
+    step1:'Set your Minecraft folder in the Settings tab',
+    step2:'Click Install — the loader will download and install automatically',
+    step3:'Launch the game from this launcher — the Fabric profile will be selected automatically',
+    settings_title:'Settings', settings_sub:'Launcher and game configuration',
+    section_player:'Player', setting_username:'Username',
+    setting_username_sub:'Name in offline mode',
+    section_paths:'Paths', setting_mcdir:'Minecraft Folder',
+    setting_mcdir_sub:'Path to .minecraft directory',
+    setting_java:'Java path', setting_java_sub:'Leave empty for auto-detect',
+    section_perf:'Performance', setting_ram:'RAM',
+    setting_ram_sub:'Megabytes allocated to the game',
+    section_system:'System',
+    btn_reset:'Reset', btn_save:'Save',
+    saved:'Settings saved!', reset_done:'Settings reset',
+    about_title:'About', section_features:'Features',
+    feat1:'Automatic Fabric installation and launch',
+    feat2:'Recommended mods list with links',
+    feat3:'Manual Minecraft folder selection',
+    feat4:'RAM allocation settings',
+    feat5:'Russian and English interface',
+    about_note:'Requires Java 17 or newer. Java 21 recommended.',
+    launch_modal_title:'Launching game',
+    launch_modal_sub:'Opening Minecraft with Fabric...',
+    btn_close:'Close',
+    err_no_dir:'Set Minecraft folder in settings',
+    err_no_fabric:'Fabric not installed. Go to Fabric tab.',
+    launch_ok:'Minecraft launched!',
+    launch_checking:'Checking configuration...',
+    launch_launching:'Launching game...',
+    launch_done:'Done! Game launched.',
+    fabric_dl:'Downloading Fabric Installer...',
+    fabric_inst:'Installing...',
+    fabric_done:'Fabric installed!',
+    fabric_err:'Installation error',
+    syskey_os:'Operating System', syskey_java:'Java',
+    syskey_mcdir:'MC Folder', syskey_exists:'Folder exists',
+    syskey_yes:'Yes', syskey_no:'No',
+  }
+};
+
+let lang = 'ru';
+let config = {};
+let allMods = [];
+let currentFilter = 'all';
+let dirty = false;
+
+function t(key){ return T[lang][key] || key; }
+
+function applyLang(){
+  document.querySelectorAll('[data-i]').forEach(el=>{
+    const k = el.getAttribute('data-i');
+    if(T[lang][k]) el.textContent = T[lang][k];
+  });
+  renderMods();
+  renderNews();
+  renderSysInfo();
+  checkFabric();
+}
+
+function setLang(l){
+  lang = l;
+  document.getElementById('lang-ru').classList.toggle('active', l==='ru');
+  document.getElementById('lang-en').classList.toggle('active', l==='en');
+  if(config){ config.language = l; saveConfigSilent(); }
+  applyLang();
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────
+function nav(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('nav-'+page).classList.add('active');
+  if(page==='mods') loadMods();
+  if(page==='fabric') checkFabric();
+  if(page==='settings') loadSettingsUI();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function toast(msg, type='success'){
+  const c = document.getElementById('toast');
+  const el = document.createElement('div');
+  el.className = `toast-item ${type}`;
+  el.textContent = msg;
+  c.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3000);
+}
+
+// ── Python API ────────────────────────────────────────────────────────────
+async function py(method, ...args){
+  if(window.pywebview && window.pywebview.api){
+    return await window.pywebview.api[method](...args);
+  }
+  return null;
+}
+
+// ── Config ────────────────────────────────────────────────────────────────
+async function loadConfig(){
+  const raw = await py('get_config');
+  if(raw){ config = JSON.parse(raw); } else { config = {language:'ru',ram:2048,username:'Player',minecraft_dir:'',java_path:'',last_version:'1.21.1'}; }
+  lang = config.language || 'ru';
+  document.getElementById('lang-ru').classList.toggle('active', lang==='ru');
+  document.getElementById('lang-en').classList.toggle('active', lang==='en');
+  applyLang();
+  updateWelcome();
+  loadNews();
+  updateHomeStats();
+}
+
+function updateWelcome(){
+  const name = config.username || (lang==='ru' ? 'Игрок' : 'Player');
+  document.getElementById('welcome-greeting').textContent = (lang==='ru' ? 'Привет, ' : 'Hello, ') + name + '!';
+  document.getElementById('stat-ram').textContent = (config.ram || 2048) + ' MB';
+}
+
+async function saveConfigSilent(){
+  await py('save_settings', JSON.stringify(config));
+}
+
+// ── Settings UI ───────────────────────────────────────────────────────────
+function loadSettingsUI(){
+  const grid = document.getElementById('settings-grid');
+  grid.innerHTML = `
+    <div class="card">
+      <div class="section-label" data-i="section_player">Игрок</div>
+      <div class="setting-row">
+        <div><div class="setting-label" data-i="setting_username">Никнейм</div><div class="setting-sub" data-i="setting_username_sub">Имя в оффлайн режиме</div></div>
+        <input class="inp" id="cfg-username" type="text" maxlength="16" oninput="markDirty()" value="${config.username || ''}"/>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label" data-i="section_paths">Пути</div>
+      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+        <div><div class="setting-label" data-i="setting_mcdir">Папка Minecraft</div><div class="setting-sub" data-i="setting_mcdir_sub">Путь к .minecraft директории</div></div>
+        <div class="path-row" style="width:100%">
+          <input class="path-inp" id="cfg-mcdir" type="text" oninput="markDirty()" value="${config.minecraft_dir || ''}"/>
+          <button class="btn-pick" onclick="pickFolder()">📁</button>
+        </div>
+        <div id="mcdir-status" class="info-box info" style="display:none;width:100%">
+          <div class="info-box-text"></div>
+        </div>
+      </div>
+      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+        <div><div class="setting-label" data-i="setting_java">Java путь</div><div class="setting-sub" data-i="setting_java_sub">Оставь пустым для автоопределения</div></div>
+        <input class="path-inp" id="cfg-java" type="text" oninput="markDirty()" value="${config.java_path || ''}" style="width:100%"/>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label" data-i="section_perf">Производительность</div>
+      <div class="setting-row">
+        <div><div class="setting-label" data-i="setting_ram">Оперативная память</div><div class="setting-sub" data-i="setting_ram_sub">Мегабайт выделить для игры</div></div>
+        <div class="ram-row">
+          <input type="range" class="ram-slider" id="cfg-ram" min="512" max="8192" step="256" oninput="updateRamVal(this.value)" value="${config.ram || 2048}"/>
+          <div class="ram-val" id="ram-val-label">${config.ram || 2048} MB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Установка Minecraft</div>
+      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:12px">
+        <div style="width:100%">
+          <div class="setting-label">Версия игры</div>
+          <div class="setting-sub">Выберите версию для установки</div>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <select id="install-version" class="select" style="width:auto">
+              <option value="1.21.1" ${config.last_version === '1.21.1' ? 'selected' : ''}>1.21.1</option>
+              <option value="1.20.4" ${config.last_version === '1.20.4' ? 'selected' : ''}>1.20.4</option>
+              <option value="1.20.1" ${config.last_version === '1.20.1' ? 'selected' : ''}>1.20.1</option>
+              <option value="1.19.4" ${config.last_version === '1.19.4' ? 'selected' : ''}>1.19.4</option>
+            </select>
+            <button class="btn btn-primary" onclick="installMinecraftVersion(document.getElementById('install-version').value)">
+              Установить
+            </button>
+          </div>
+        </div>
+        <div class="info-box info">
+          <div class="info-box-text">Это загрузит клиент Minecraft и все необходимые библиотеки (около 300-500 МБ).</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label" data-i="section_system">Система</div>
+      <div class="sysinfo-grid" id="sysinfo-grid">
+        <div style="color:var(--muted);font-size:12px" data-i="loading">Загрузка...</div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:10px">
+      <button class="btn btn-ghost" onclick="resetSettings()" data-i="btn_reset">Сбросить</button>
+      <button class="btn btn-primary" onclick="saveSettings()" data-i="btn_save">Сохранить</button>
+    </div>
+  `;
+  
+  document.getElementById('cfg-username').value = config.username || '';
+  document.getElementById('cfg-mcdir').value = config.minecraft_dir || '';
+  document.getElementById('cfg-java').value = config.java_path || '';
+  const ram = config.ram || 2048;
+  document.getElementById('cfg-ram').value = ram;
+  document.getElementById('ram-val-label').textContent = ram + ' MB';
+  checkMcDir(config.minecraft_dir || '');
+  loadSysInfo();
+  
+  // Apply i18n to new elements
+  document.querySelectorAll('[data-i]').forEach(el=>{
+    const k = el.getAttribute('data-i');
+    if(T[lang][k]) el.textContent = T[lang][k];
+  });
+}
+
+function updateRamVal(v){
+  document.getElementById('ram-val-label').textContent = v + ' MB';
+  markDirty();
+}
+
+function markDirty(){ dirty = true; }
+
+async function saveSettings(){
+  config.username = document.getElementById('cfg-username').value.trim() || 'Player';
+  config.minecraft_dir = document.getElementById('cfg-mcdir').value.trim();
+  config.java_path = document.getElementById('cfg-java').value.trim();
+  config.ram = parseInt(document.getElementById('cfg-ram').value);
+  const res = await py('save_settings', JSON.stringify(config));
+  if(res){ const r = JSON.parse(res); if(r.ok){ toast(t('saved'),'success'); dirty=false; updateWelcome(); } }
+  else { toast(t('saved'),'success'); dirty=false; updateWelcome(); }
+}
+
+function resetSettings(){
+  document.getElementById('cfg-username').value = 'Player';
+  document.getElementById('cfg-mcdir').value = '';
+  document.getElementById('cfg-java').value = '';
+  document.getElementById('cfg-ram').value = 2048;
+  document.getElementById('ram-val-label').textContent = '2048 MB';
+  toast(t('reset_done'),'info');
+}
+
+async function pickFolder(){
+  const res = await py('pick_folder');
+  if(res){
+    const r = JSON.parse(res);
+    if(r.path){
+      document.getElementById('cfg-mcdir').value = r.path;
+      config.minecraft_dir = r.path;
+      checkMcDir(r.path);
+      markDirty();
+    }
+  }
+}
+
+function checkMcDir(path){
+  const box = document.getElementById('mcdir-status');
+  if(!path){ box.style.display='none'; return; }
+  box.style.display='flex';
+  box.className = 'info-box info';
+  box.querySelector('.info-box-text').textContent = path;
+}
+
+async function loadSysInfo(){
+  const raw = await py('get_system_info');
+  const info = raw ? JSON.parse(raw) : null;
+  const grid = document.getElementById('sysinfo-grid');
+  if(!info){ grid.innerHTML = '<div style="color:var(--muted);font-size:12px">N/A</div>'; return; }
+  grid.innerHTML = `
+    <div class="sysinfo-item"><div class="sysinfo-key">${t('syskey_os')}</div><div class="sysinfo-val">${info.os}</div></div>
+    <div class="sysinfo-item"><div class="sysinfo-key">${t('syskey_java')}</div><div class="sysinfo-val">${info.java || 'N/A'}</div></div>
+    <div class="sysinfo-item"><div class="sysinfo-key">${t('syskey_mcdir')}</div><div class="sysinfo-val" style="font-size:10px">${info.default_mc_dir}</div></div>
+    <div class="sysinfo-item"><div class="sysinfo-key">${t('syskey_exists')}</div><div class="sysinfo-val" style="color:${info.mc_dir_exists?'var(--green)':'var(--red)'}">${info.mc_dir_exists ? t('syskey_yes') : t('syskey_no')}</div></div>
+  `;
+}
+
+async function renderSysInfo(){ if(document.getElementById('page-settings').classList.contains('active')) loadSysInfo(); }
+
+// ── Mods ──────────────────────────────────────────────────────────────────
+async function loadMods(){
+  const raw = await py('get_mods');
+  if(raw){ allMods = JSON.parse(raw); } else { allMods = []; }
+  renderMods();
+  document.getElementById('stat-mods').textContent = allMods.length;
+}
+
+function filterMods(cat){
+  currentFilter = cat;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderMods();
+}
+
+function renderMods(){
+  const grid = document.getElementById('mods-grid');
+  if(!allMods.length){ grid.innerHTML = `<div style="color:var(--muted);font-size:12px">${t('loading')}</div>`; return; }
+  const filtered = currentFilter==='all' ? allMods : allMods.filter(m=>m.category===currentFilter);
+  grid.innerHTML = filtered.map(m=>`
+    <div class="mod-card">
+      <div class="mod-header">
+        <div class="mod-icon">${m.icon}</div>
+        <div><div class="mod-name">${m.name}</div><div class="mod-cat">${m.category}</div></div>
+      </div>
+      <div class="mod-desc">${lang==='ru' ? m.desc_ru : m.desc_en}</div>
+      <div class="mod-footer">
+        ${m.required ? `<span class="mod-required">${t('mod_required')}</span>` : '<span></span>'}
+        <button class="mod-btn ${m.installed?'installed':''}" onclick="openMod('${m.url}')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          ${m.installed ? t('mod_installed') : t('mod_open')}
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function openMod(url){
+  await py('open_mod_url', url);
+}
+
+// ── News ──────────────────────────────────────────────────────────────────
+let newsData = [];
+async function loadNews(){
+  const raw = await py('get_news');
+  if(raw){ newsData = JSON.parse(raw); } else { newsData = []; }
+  renderNews();
+}
+function renderNews(){
+  const list = document.getElementById('news-list');
+  if(!newsData.length){ list.innerHTML = `<div style="color:var(--muted);font-size:12px">${t('loading')}</div>`; return; }
+  list.innerHTML = newsData.map(n=>`
+    <div class="news-item">
+      <div class="news-meta">
+        <span class="news-tag ${n.tag}">${n.tag.toUpperCase()}</span>
+        <span class="news-date">${n.date}</span>
+      </div>
+      <div class="news-title">${lang==='ru' ? n.title_ru : n.title_en}</div>
+      <div class="news-body">${lang==='ru' ? n.body_ru : n.body_en}</div>
+    </div>
+  `).join('');
+}
+
+// ── Fabric ────────────────────────────────────────────────────────────────
+async function checkFabric(){
+  const badge = document.getElementById('fabric-status-badge');
+  const btn = document.getElementById('fabric-install-btn');
+  if(!badge) return;
+  badge.innerHTML = `<span>${t('fabric_checking')}</span>`;
+  badge.className = 'fabric-badge missing';
+  const raw = await py('check_fabric');
+  if(!raw) return;
+  const info = JSON.parse(raw);
+  document.getElementById('fabric-ver-text').textContent = `${info.loader} / MC ${info.version}`;
+  if(info.installed){
+    badge.className = 'fabric-badge installed';
+    badge.innerHTML = `<span>${t('fabric_installed')}</span>`;
+    if(btn) btn.disabled = true;
+    if(btn) btn.style.opacity = '.4';
+  } else {
+    badge.className = 'fabric-badge missing';
+    badge.innerHTML = `<span>${t('fabric_missing')}</span>`;
+    if(btn) btn.disabled = false;
+    if(btn) btn.style.opacity = '1';
+  }
+}
+
+async function installFabric(){
+  const btn = document.getElementById('fabric-install-btn');
+  if(btn) btn.disabled = true;
+  const wrap = document.getElementById('fabric-progress-wrap');
+  if(wrap) wrap.style.display='block';
+  if(btn) btn.innerHTML = `<div class="spinner spinner-sm"></div>`;
+  await py('install_fabric');
+}
+
+// ── Minecraft Installation ────────────────────────────────────────────────
+async function installMinecraftVersion(version) {
+  document.getElementById('install-modal').style.display = 'flex';
+  document.getElementById('install-modal-desc').textContent = `Установка ${version}...`;
+  document.getElementById('install-progress-bar').style.width = '0%';
+  document.getElementById('install-speed').textContent = '0 KB/s';
+  const cancelBtn = document.getElementById('cancel-install-btn');
+  if(cancelBtn) cancelBtn.disabled = false;
+  await py('install_minecraft', version);
+}
+
+async function cancelInstall() {
+  const cancelBtn = document.getElementById('cancel-install-btn');
+  if(cancelBtn) {
+    cancelBtn.disabled = true;
+    cancelBtn.textContent = 'Отмена...';
+  }
+  await py('cancel_install');
+  setTimeout(() => {
+    document.getElementById('install-modal').style.display = 'none';
+    toast('Установка отменена', 'info');
+  }, 1000);
+}
+
+// ── Launch ────────────────────────────────────────────────────────────────
+async function launchGame(){
+  document.getElementById('launch-modal').style.display='flex';
+  document.getElementById('launch-modal-status').textContent = t('launch_checking');
+  document.getElementById('launch-modal-prog').style.width = '10%';
+  await py('launch_game_direct');
+}
+
+// ── Python events ─────────────────────────────────────────────────────────
+window.onPyEvent = function(event, data){
+  if(event === 'fabric_progress'){
+    const bar = document.getElementById('fabric-prog-bar');
+    const txt = document.getElementById('fabric-progress-text');
+    if(data.step === 'download'){ if(txt) txt.textContent = t('fabric_dl') + ' ' + data.pct + '%'; }
+    else if(data.step === 'install'){ if(txt) txt.textContent = t('fabric_inst'); }
+    else if(data.step === 'done'){
+      if(txt) txt.textContent = t('fabric_done');
+      toast(t('fabric_done'), 'success');
+      checkFabric();
+    } else if(data.step === 'error'){
+      if(txt) txt.textContent = t('fabric_err') + ': ' + (data.error||'');
+      toast(t('fabric_err'), 'error');
+    }
+    if(bar) bar.style.width = data.pct + '%';
+  }
+  
+  if(event === 'install_progress') {
+    const bar = document.getElementById('install-progress-bar');
+    const modalDesc = document.getElementById('install-modal-desc');
+    const msgEl = document.getElementById('install-modal-message');
+    const speedEl = document.getElementById('install-speed');
+    
+    if(bar) bar.style.width = data.pct + '%';
+    if(msgEl && data.message) msgEl.textContent = data.message;
+    if(speedEl && data.speed) speedEl.textContent = data.speed;
+    
+    if(data.step === 'done') {
+      if(modalDesc) modalDesc.textContent = '✅ ' + data.message;
+      setTimeout(() => {
+        document.getElementById('install-modal').style.display = 'none';
+        toast('Minecraft установлен!', 'success');
+      }, 2000);
+    } else if(data.step === 'error') {
+      if(modalDesc) modalDesc.textContent = '❌ ' + data.message;
+      toast('Ошибка: ' + data.message, 'error');
+    } else if(data.step === 'cancelled') {
+      if(modalDesc) modalDesc.textContent = '⚠️ ' + data.message;
+      setTimeout(() => {
+        document.getElementById('install-modal').style.display = 'none';
+      }, 1000);
+    }
+  }
+  
+  if(event === 'launch_status'){
+    const modal_prog = document.getElementById('launch-modal-prog');
+    const modal_txt = document.getElementById('launch-modal-status');
+    if(data.step === 'checking'){ if(modal_txt) modal_txt.textContent = t('launch_checking'); if(modal_prog) modal_prog.style.width='30%'; }
+    else if(data.step === 'loading'){ if(modal_txt) modal_txt.textContent = 'Загрузка метаданных...'; if(modal_prog) modal_prog.style.width='40%'; }
+    else if(data.step === 'resolving'){ if(modal_txt) modal_txt.textContent = 'Сбор classpath...'; if(modal_prog) modal_prog.style.width='60%'; }
+    else if(data.step === 'launching'){ if(modal_txt) modal_txt.textContent = t('launch_launching'); if(modal_prog) modal_prog.style.width='90%'; }
+    else if(data.step === 'running'){
+      if(modal_txt) modal_txt.textContent = 'Игра запущена!';
+      if(modal_prog) modal_prog.style.width='100%';
+      toast(t('launch_ok'),'success');
+      setTimeout(()=>{ document.getElementById('launch-modal').style.display='none'; }, 2000);
+    }
+    else if(data.step === 'done'){
+      if(modal_txt) modal_txt.textContent = 'Игра закрыта';
+      if(modal_prog) modal_prog.style.width='100%';
+      setTimeout(()=>{ document.getElementById('launch-modal').style.display='none'; }, 1500);
+    }
+    else if(data.step === 'error'){
+      if(modal_txt) modal_txt.textContent = '❌ ' + (data.message || '');
+      toast(data.message||'Error','error');
+    }
+  }
+  
+  if(event === 'game_output') {
+    console.log(`[${data.type}]: ${data.line}`);
+  }
+};
+
+// ── Home stats ────────────────────────────────────────────────────────────
+function updateHomeStats(){
+  document.getElementById('stat-mods').textContent = '8';
+  document.getElementById('stat-ram').textContent = (config.ram||2048) + ' MB';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+window.addEventListener('pywebviewready', ()=>{ loadConfig(); });
+
+// Demo mode fallback (browser preview)
+setTimeout(()=>{
+  if(!window.pywebview){
+    config = {language:'ru',ram:2048,username:'Player',minecraft_dir:'',java_path:'',last_version:'1.21.1'};
+    loadNews();
+    updateHomeStats();
+    applyLang();
+    updateWelcome();
+    loadSettingsUI();
+  }
+}, 300);
+</script>
+</body>
+</html>
